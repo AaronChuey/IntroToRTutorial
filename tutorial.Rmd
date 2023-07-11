@@ -11,7 +11,7 @@ In this tutorial, you will 1) read in a csv file, 2) do some data wrangling, 3) 
 A package is code that someone else has written and made publicly available for us to use. There are thousands of packages in R with numerous uses. Essentially anytime you'll be coding in R, you'll be using packages. 
 
 ## Installing Packages
-Installing packages is easy, and you only need to do it once (at least once per R version). In this tutorial, we'll be making heavy use of the tidyverse package, which consists of a collection of essential functions for wrangling and manipulating data structures. As long as you have an internet connection, install.packages() can automatically install publically available packages from the command line.
+Installing packages is easy, and you only need to do it once (at least once per R version). In this tutorial, we'll be making heavy use of the tidyverse package, which consists of a collection of essential functions for wrangling and manipulating data structures. As long as you have an internet connection, install.packages() can automatically install publicly available packages from the command line.
 ```{r}
 install.packages("tidyverse")
 ```
@@ -38,9 +38,8 @@ View(raw_data)
 
 ## Manipulating Dataframes
 Although this data is already pretty organized, there are a few things we have to do before we can analyze and visualize it. 
-
 ### Removing Rows and Columns
-First, we can exclude any participants who need to be excluded. Let's say that in this experiment, there were two inclusion checks, one administered before the study (inclusion_01) and one afterwards (inclusion_02). Any participant who failed (marked as "0"), should be excluded. In tidyverse, we can use the filter() function to eliminate rows based on specific criteria. filter() returns the rows that satisfy a given statement. In R, we can use logical operators and the equivalence operator (==) to write these statements. We'll also make use of the pipe (%>%), an extraordinarily useful operator from tidyverse (you can use command-shift-m on macs). Pipe feeds a variable (i.e., a dataframe or the output of another function) into another function. This allows us to chain together functions in a transparent way.
+First, we can exclude any participants who need to be excluded. Let's say that in this experiment, there were two inclusion checks, one administered before the study (inclusion_01) and one afterwards (inclusion_02). Any participant who failed (marked as "0"), should be excluded. In tidyverse, we can use the filter() function to eliminate rows based on specific criteria. filter() returns the rows that satisfy a given statement. In R, we can use logical operators to write these statements. We'll also make use of the pipe (%>%), an extraordinarily useful operator from tidyverse (you can use command-shift-m on macs). Pipe feeds a variable (i.e., a dataframe or the output of another function) into another function. This allows us to chain together functions in a transparent way.
 ```{r}
 filtered_data <- raw_data %>% 
   filter(inclusion_01 == 1) %>% 
@@ -71,7 +70,7 @@ data_long <- mutated_data %>%
   pivot_longer(cols = "Aaron_laughs":"Hyo_laughs", names_to = "Experimenter", values_to = "Laughs")
 ```
 
-Notice that we can specify a range of columns using ":", and the names of each column needs to specified as a string using "". One annoying thing though is that the values of "Experimenter" are the original column names, not just the experimenter's names. We can use the separate() function and regular expressions and mutate to take care of this! Separate takes in a column, a vector of new column names, and a separator string. It splits the values of the given column by the separator string, and assigns them each into a new column. If only one new column is specified, then only the first resulting is assigned to a new column and the rest are discarded into the ether.
+Notice that we can specify a range of columns using ":", and the names of each column needs to be specified as a string using "". One annoying thing though is that the values of "Experimenter" are the original column names, not just the experimenter's names. We can use the separate() function to take care of this! Separate takes in a column, a vector of new column names, and a separator string. It splits the values of the given column by the separator string, and assigns them each into a new column. If only one new column is specified, then only the first resulting is assigned to a new column.
 ```{r}
 data_long <- data_long %>% 
   separate(Experimenter, c("Experimenter"), sep="_")
@@ -103,7 +102,7 @@ mean(data_long$Age.months)
 ```
 
 ## Linear Regression
-Linear regression is a common way to analyze both continuous and discrete data. The lm() function reduces the prediction error for a dependent variable based on a system of indepedent variables. The input statement takes the form "DV ~ IVs". If you want two separate IV's and are not interested in the interaction term, you can use "+", whereas if you are also interested in the interaction term, you can use "*". This works for multiple IV's, although interpreting 3-way+ interactions can get dicey and requires greater and greater power. For now, let's see how the number of laughs is predicted by experimenter. There are a variety of ways to summarize and visualize the output of lm(), but summary() usually gets the job done.
+Linear regression is a common way to analyze both continuous and discrete data. The lm() function reduces the prediction error for a dependent variable (DV) based on a system of independent variables (IV). The input statement takes the form "DV ~ IVs". If you want two separate IV's and are not interested in the interaction term, you can use "+", whereas if you are also interested in the interaction term, you can use "*". This works for multiple IV's, although interpreting 3-way+ interactions can get dicey and requires greater and greater power. For now, let's see how the number of laughs is predicted by experimenter. There are a variety of ways to summarize and visualize the output of lm(), but summary() usually gets the job done.
 ```{r}
 lm(Laughs ~ Experimenter, data = data_long) %>% summary()
 ```
@@ -113,7 +112,7 @@ lm(Laughs ~ Experimenter*Age.months, data = data_long) %>% summary()
 ```
 
 ## T-tests
-It looks like there is an interaction with age. Hyo seems to get greater laughs with older children! Although linear regression may not be the ideal test to examine this pattern, it's simple to run and give you a quick idea of where things stand. If we want to do some direct comparisons, we can use test-tests. Let's use a series of Welch's T-tests to compare laughs for each experimenter to one another. In practice, we would want to correct for the use of multiple comparisons by making it harder (making an adjustment) to find an effect. But for now, let's just get an idea of how things look. We can actually store the results of statistical tests as a variable and call them later
+It looks like there is an interaction with age. Hyo seems to get greater laughs with older children! Although linear regression may not be the ideal test to examine this pattern, it's simple to run and can give you a quick idea of where things stand. If we want to do some direct comparisons, we can use t-tests. Let's use a series of Welch's T-tests to compare laughs for each experimenter to one another. In practice, we would want to correct for the use of multiple comparisons by making it harder (making an adjustment) to find an effect. But for now, let's just get an idea of how things look. We can actually store the results of statistical tests as a variable and call them later if we want.
 ```{r}
 Hyo_Aaron = t.test(data_long %>% filter(Experimenter == "Hyo") %>% select(Laughs), data_long %>% filter(Experimenter == "Aaron") %>% select(Laughs))
 Hyo_Peter = t.test(data_long %>% filter(Experimenter == "Hyo") %>% select(Laughs), data_long %>% filter(Experimenter == "Peter") %>% select(Laughs))
@@ -148,7 +147,15 @@ ggplot(data=data_long, aes(x = Age.months, y=Laughs, color=Experimenter)) +
   geom_smooth()
 ```
 
-Now it seems pretty clear what's going on! Aaron, Peter, and Kat are pretty get pretty similar amounts of laughs across ages. But Hyo gets markedly more laughs with older children, which probably drove the main effect of Experimenter that we observed earlier. This graph could still look a lot nicer, so let's use some tricks to clean it up a bit
+What if we also want to see how this trend varies by the time in which the study was run (morning vs afternoon)? We already have a lot going on in this graph variable wise, so instead of adding a new aesthetic value, we can generate two separate side-by-side graphs, one for morning and one for afternoon. We can use the facet_wrap() function to accomplish this!
+```{r}
+ggplot(data=data_long, aes(x = Age.months, y=Laughs, color=Experimenter)) +
+  geom_point() +
+  geom_smooth() +
+  facet_wrap(~time)
+```
+
+Now it seems pretty clear what's going on! Aaron, Peter, and Kat get pretty similar amounts of laughs across ages. But Hyo gets markedly more laughs with older children, which probably drove the main effect of Experimenter that we observed earlier. There's also a lot more older children in the afternoon class, which concentrates this effect to those children . This graph could still look a lot nicer, so let's use some tricks to clean it up a bit
 ```{r}
 ggplot(data=data_long, aes(x = Age.months, y=Laughs, color=Experimenter)) +
   geom_point(size=1.5, alpha=.7) +
@@ -162,11 +169,12 @@ ggplot(data=data_long, aes(x = Age.months, y=Laughs, color=Experimenter)) +
         legend.title=element_text(size=14,face="bold"),
         legend.text=element_text(size=12),
         legend.direction="horizontal",
-        legend.position="bottom")
+        legend.position="bottom") +
+  facet_wrap(~time)
 ```
 
 ## Bar Plots
-This is one way of visualizing the data, but bar plots can also be a nice way to compared different groups. Let's first try graphing average laughs by experimenter, with standard error as error bars. But you might notice that some additional data wrangling is needed since the dataframe is organized by individual values, not group means. This is where group_by() and summarise() come in handy. These functions allow you to easily group data together by certain factors and generate statistics at the group level.
+This is one way to visualize the data, but bar plots can also be a nice way to compare different groups. Let's first try graphing average laughs by experimenter, with standard error as error bars. But you might notice that some additional data wrangling is needed since the dataframe is organized by individual values, not group means. This is where group_by() and summarise() come in handy. These functions allow you to easily group data together by certain factors and generate statistics at the group level.
 ```{r}
 grouped_by_experimenter = data_long %>% 
   group_by(Experimenter) %>% 
@@ -175,14 +183,14 @@ grouped_by_experimenter = data_long %>%
 View(grouped_by_experimenter)
 ```
 
-Now we can try graphing mean laughs by experimenter using geom_bar() and geom_errorbar(). geom_bar() takes in the same aesthetics as ggplot(), and we can use "stat="identity"" to use the same ones. geom_errorbar() is a bit different than other geoms, and requires a ymin and ymax aesthetic, which can generate via our se_laughs statistic!
+Now we can try graphing mean laughs by experimenter using geom_bar() and geom_errorbar(). geom_bar() takes in the same aesthetics as ggplot(), and we can use "stat="identity"" to use the same parameters as our ggplot() function. geom_errorbar() is a bit different than other geoms, and requires a ymin and ymax aesthetic, which we can generate via our se_laughs statistic!
 ```{r}
 ggplot(data=grouped_by_experimenter, aes(x = Experimenter, y=mean_laughs)) +
   geom_bar(stat="identity") +
   geom_errorbar(aes(ymin = mean_laughs - se_laughs, ymax = mean_laughs + se_laughs))
 ```
 
-Ok, this seems like a reasonable, if not ugly, way to visualize the data. Now let's say we want to see how laughs varied by both experimenter and the time the study was conducted (morning or afternoon). Let's try grouping by time and graphing! Instead of using color, it's often best to use "fill" as the color aesthetic, which generates different bars by value. We'll also have to add position="dodge" as a parameter in geom_bar() and geom_errobar() to ensure that the bars are to side rather than stacked!
+Ok, this seems like a reasonable, if not ugly, way to visualize the data. Now let's say we want to see how laughs varied by both experimenter and the time the study was conducted (morning or afternoon). Let's try grouping by time and graphing! Instead of using color, it's often best to use "fill" as the color aesthetic, which generates different bars by value. We'll also have to add position="dodge" as a parameter in geom_bar() and geom_errobar() to ensure that the bars are side-by-side rather than stacked!
 ```{r}
 grouped_by_experimenter_time = data_long %>% 
   group_by(Experimenter, time) %>% 
