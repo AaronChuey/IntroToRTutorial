@@ -1,0 +1,232 @@
+---
+title: "R Tutorial"
+author: "Aaron Chuey"
+date: "2023-07-12"
+output: html_document
+---
+
+In this tutorial, you will 1) read in a csv file, 2) do some data wrangling, 3) analyze some data, and 4) do some data visualization. Many topics will not be covered, but hopefully this will give you a basic intuition for working with R! We'll be working in an RMarkdown file, which combines sections of text and code.
+
+# Packages
+A package is code that someone else has written and made publicly available for us to use. There are thousands of packages in R with numerous uses. Essentially anytime you'll be coding in R, you'll be using packages. 
+
+## Installing Packages
+Installing packages is easy, and you only need to do it once (at least once per R version). In this tutorial, we'll be making heavy use of the tidyverse package, which consists of a collection of essential functions for wrangling and manipulating data structures. As long as you have an internet connection, install.packages() can automatically install publically available packages from the command line.
+```{r}
+install.packages("tidyverse")
+```
+
+## Loading Packages
+Each time you load an R (or R markdown) file, you will need to load the packages that you plan to use. The library() function needs to be called for each desired package. 
+```{r}
+library(tidyverse)
+```
+
+# Data Wrangling 
+A lot of R coding is spent getting your data into a state that it can be analyzed and visualized. In R, data is typically stored in a structure called a 'dataframe', which is essentially a matrix with labelled columns. Stats functions like lm() and graphing functions like ggplot() require dataframes to be formatted in a particular way.
+
+## Reading Files
+In this tutorial, we'll be working with a relatively simple csv file that is stored in "wide" format (each participant occupies a single row, with repeated measures stored as different columns). Reading csv files is easy in R as long as your file path is set correctly. A file path describes the location of a file within a broader folder structure. In R, the file path typically defaults to wherever the R file itself is located, so we simply need to call the subfolder that our data is located in!
+```{r}
+raw_data <- read.csv("data/data.csv", header = TRUE)
+```
+
+The contents of our csv file are now stored as a dataframe (raw_data). Notes that variables can be stored using both "<-" and "="! We can use the View() function to see what the dataframe looks like. As you can see, each row is a participant, and each participant has a number of parameters, including ID, Age.months, gender, time, Aaron_laughs, Peter_laughs, Kat_laughs, Hyo_laughs, inclusion_01, and inclusion_02. Imagine that this experiment involved 100 preschoolers who participated in either a morning or afternoon session. During the experiment, Aaron, Peter, Kat, and Hyo each had 5 minutes to do a comedy routine and the number of times a given child laughed for each experimenter was recorded.
+```{r}
+View(raw_data)
+```
+
+## Manipulating Dataframes
+Although this data is already pretty organized, there are a few things we have to do before we can analyze and visualize it. 
+
+### Removing Rows and Columns
+First, we can exclude any participants who need to be excluded. Let's say that in this experiment, there were two inclusion checks, one administered before the study (inclusion_01) and one afterwards (inclusion_02). Any participant who failed (marked as "0"), should be excluded. In tidyverse, we can use the filter() function to eliminate rows based on specific criteria. filter() returns the rows that satisfy a given statement. In R, we can use logical operators and the equivalence operator (==) to write these statements. We'll also make use of the pipe (%>%), an extraordinarily useful operator from tidyverse (you can use command-shift-m on macs). Pipe feeds a variable (i.e., a dataframe or the output of another function) into another function. This allows us to chain together functions in a transparent way.
+```{r}
+filtered_data <- raw_data %>% 
+  filter(inclusion_01 == 1) %>% 
+  filter(inclusion_02 == 1)
+```
+
+Now if you view filtered_data, you'll notice that any rows where inclusion_01 or inclusion_02 were equal to 0 are now removed. Although not strictly necessary, we can use the select() function in addition to "-" to remove columns. In essence, select() only retains the columns that are specified, and "-" tells select() to select all columns besides the one specified.
+```{r}
+filtered_data <- filtered_data %>% 
+  select(-inclusion_01) %>% 
+  select(-inclusion_02)
+```
+
+## Adding and Altering Rows and Columns
+In addition to filtering out rows and columns, we often need to add new columns or alter existing columns. Let's say that we want to add a column that lists a child's age in years. How would we do that? We can use the mutate() function to add or alter columns, and we can use a series of case_when() statements to specify the values in those columns based on the values in an existing column. If we want to get the precise age in years, we can simply divide Age.months by 12. This way is commented out using "#", meaning that it is visible, but won't be run.
+```{r}
+mutated_data <- filtered_data %>%
+  #mutate(Age.years = Age.months/12) %>% 
+  mutate(Age.years = case_when(Age.months < 48 ~ 3,
+                               Age.months >= 48 & Age.months < 60 ~ 4,
+                               Age.months >= 60 ~ 5))
+```
+
+## Pivoting Long and Wide
+Earlier I said the data was in "wide" format, which means that each participant is represented by a single row. For many stats and graphing applications in R, we need to format the data "long". This means that each row represents a particular response value, and for dataframes for repeated measures, a participant could be spread across multiple rows. Pivoting long means taking the columns that represent each repeated measure and turning them into 2 columns, one whose values represent the value of the measure and another whose values stipulate the kind of measure. We can do this using the pivot_longer() function. pivot_longer() takes as arguments the columns you want to distribute and the names of the resulting 2 new columns. If you wanted to go from long to wide format, you can use pivot_wider(), which does this process in reverse, specifying 2 columns to turn into a number of new columns.
+```{r}
+data_long <- mutated_data %>% 
+  pivot_longer(cols = "Aaron_laughs":"Hyo_laughs", names_to = "Experimenter", values_to = "Laughs")
+```
+
+Notice that we can specify a range of columns using ":", and the names of each column needs to specified as a string using "". One annoying thing though is that the values of "Experimenter" are the original column names, not just the experimenter's names. We can use the separate() function and regular expressions and mutate to take care of this! Separate takes in a column, a vector of new column names, and a separator string. It splits the values of the given column by the separator string, and assigns them each into a new column. If only one new column is specified, then only the first resulting is assigned to a new column and the rest are discarded into the ether.
+```{r}
+data_long <- data_long %>% 
+  separate(Experimenter, c("Experimenter"), sep="_")
+```
+
+Now if we view our data, it's nicely formatted! Each row contains a single repeated measure. The participant number and experimenter are specified by their own columns, which makes it easy to analyze.
+```{r}
+View(data_long)
+```
+
+# Data analysis
+Now that we have our data organized, it's time to analyze! R comes equipped with many functions for statistics and there are many packages available (e.g., lme4 for mixed effects models, metafor for meta-analysis, etc.).
+
+## Descriptive Statistics
+We'll start with some simple descriptive statistics. There are many functions built into R, including mean(), sd(), sum(), and n() for this purpose. These functions take in vectors, meaning columns in the case of dataframe. If you want to return the values of a single column for any general purpose, you can use "$", i.e., dataframe$column.
+```{r}
+#mean number of laughs per cell
+mean(data_long$Laughs)
+
+#standard deviation
+sd(data_long$Laughs)
+
+#median
+median(data_long$Laughs)
+
+#mean age
+mean(data_long$Age.months)
+
+```
+
+## Linear Regression
+Linear regression is a common way to analyze both continuous and discrete data. The lm() function reduces the prediction error for a dependent variable based on a system of indepedent variables. The input statement takes the form "DV ~ IVs". If you want two separate IV's and are not interested in the interaction term, you can use "+", whereas if you are also interested in the interaction term, you can use "*". This works for multiple IV's, although interpreting 3-way+ interactions can get dicey and requires greater and greater power. For now, let's see how the number of laughs is predicted by experimenter. There are a variety of ways to summarize and visualize the output of lm(), but summary() usually gets the job done.
+```{r}
+lm(Laughs ~ Experimenter, data = data_long) %>% summary()
+```
+It looks like Hyo gets significantly more laughs than Aaron, although Aaron, Peter, and Kat do not significantly differ from one another. How might age factor into this?
+```{r}
+lm(Laughs ~ Experimenter*Age.months, data = data_long) %>% summary()
+```
+
+## T-tests
+It looks like there is an interaction with age. Hyo seems to get greater laughs with older children! Although linear regression may not be the ideal test to examine this pattern, it's simple to run and give you a quick idea of where things stand. If we want to do some direct comparisons, we can use test-tests. Let's use a series of Welch's T-tests to compare laughs for each experimenter to one another. In practice, we would want to correct for the use of multiple comparisons by making it harder (making an adjustment) to find an effect. But for now, let's just get an idea of how things look. We can actually store the results of statistical tests as a variable and call them later
+```{r}
+Hyo_Aaron = t.test(data_long %>% filter(Experimenter == "Hyo") %>% select(Laughs), data_long %>% filter(Experimenter == "Aaron") %>% select(Laughs))
+Hyo_Peter = t.test(data_long %>% filter(Experimenter == "Hyo") %>% select(Laughs), data_long %>% filter(Experimenter == "Peter") %>% select(Laughs))
+Hyo_Kat = t.test(data_long %>% filter(Experimenter == "Hyo") %>% select(Laughs), data_long %>% filter(Experimenter == "Kat") %>% select(Laughs))
+Aaron_Peter = t.test(data_long %>% filter(Experimenter == "Aaron") %>% select(Laughs), data_long %>% filter(Experimenter == "Peter") %>% select(Laughs))
+Aaron_Kat = t.test(data_long %>% filter(Experimenter == "Aaron") %>% select(Laughs), data_long %>% filter(Experimenter == "Kat") %>% select(Laughs))
+Peter_Kat = t.test(data_long %>% filter(Experimenter == "Peter") %>% select(Laughs), data_long %>% filter(Experimenter == "Kat") %>% select(Laughs))
+
+Hyo_Aaron
+Hyo_Peter
+Hyo_Kat
+Aaron_Peter
+Aaron_Kat
+Peter_Kat
+```
+
+# Visualization
+Visualization is where R really shines. It's best to think of graphing in R as starting with a blank canvas and painting on detail piece by piece. Sometimes we add something we will erase or alter in the future, but you're usually adding more detailed stuff as you go.
+
+## Scatter Plots
+Ggplot in particular is an extremely valuable tool that allows for data-generated plots whose aesthetics can be precisely manipulated. ggplot() is the main function where you define an "aesthetic" (the variables that will be used to generate the plot itself), while "+" is used to add additional elements to the plot. There are many different styles of graphs "geoms" in ggplot, but we'll cover two of the most basic varieties: scatter plots and bar plots. 
+
+Scatter plots are the easiest type of plot to create, and use the geom_point() function. We'll start by graphing number of laughs by age and experimenter. Age will be on the x-axis, laughs on the y-axis, and we'll make Experimenter into different colors. You can see that some interesting patterns start to emerge!
+```{r}
+ggplot(data=data_long, aes(x = Age.months, y=Laughs, color=Experimenter)) +
+  geom_point()
+```
+The trend is still a bit unclear, so let's try adding some fitted trend lines using geom_smooth()
+```{r}
+ggplot(data=data_long, aes(x = Age.months, y=Laughs, color=Experimenter)) +
+  geom_point() +
+  geom_smooth()
+```
+
+Now it seems pretty clear what's going on! Aaron, Peter, and Kat are pretty get pretty similar amounts of laughs across ages. But Hyo gets markedly more laughs with older children, which probably drove the main effect of Experimenter that we observed earlier. This graph could still look a lot nicer, so let's use some tricks to clean it up a bit
+```{r}
+ggplot(data=data_long, aes(x = Age.months, y=Laughs, color=Experimenter)) +
+  geom_point(size=1.5, alpha=.7) +
+  geom_smooth(se=F) +
+  theme_classic() +
+  xlab("Age in months") +
+  ylab("Number of Laughs") +
+  theme(aspect.ratio = 3/5,
+        axis.title=element_text(size=14,face="bold"),
+        axis.text=element_text(size=12),
+        legend.title=element_text(size=14,face="bold"),
+        legend.text=element_text(size=12),
+        legend.direction="horizontal",
+        legend.position="bottom")
+```
+
+## Bar Plots
+This is one way of visualizing the data, but bar plots can also be a nice way to compared different groups. Let's first try graphing average laughs by experimenter, with standard error as error bars. But you might notice that some additional data wrangling is needed since the dataframe is organized by individual values, not group means. This is where group_by() and summarise() come in handy. These functions allow you to easily group data together by certain factors and generate statistics at the group level.
+```{r}
+grouped_by_experimenter = data_long %>% 
+  group_by(Experimenter) %>% 
+  summarise(mean_laughs = mean(Laughs),
+            se_laughs = sd(Laughs)/sqrt(n()))
+View(grouped_by_experimenter)
+```
+
+Now we can try graphing mean laughs by experimenter using geom_bar() and geom_errorbar(). geom_bar() takes in the same aesthetics as ggplot(), and we can use "stat="identity"" to use the same ones. geom_errorbar() is a bit different than other geoms, and requires a ymin and ymax aesthetic, which can generate via our se_laughs statistic!
+```{r}
+ggplot(data=grouped_by_experimenter, aes(x = Experimenter, y=mean_laughs)) +
+  geom_bar(stat="identity") +
+  geom_errorbar(aes(ymin = mean_laughs - se_laughs, ymax = mean_laughs + se_laughs))
+```
+
+Ok, this seems like a reasonable, if not ugly, way to visualize the data. Now let's say we want to see how laughs varied by both experimenter and the time the study was conducted (morning or afternoon). Let's try grouping by time and graphing! Instead of using color, it's often best to use "fill" as the color aesthetic, which generates different bars by value. We'll also have to add position="dodge" as a parameter in geom_bar() and geom_errobar() to ensure that the bars are to side rather than stacked!
+```{r}
+grouped_by_experimenter_time = data_long %>% 
+  group_by(Experimenter, time) %>% 
+  summarise(mean_laughs = mean(Laughs),
+            se_laughs = sd(Laughs)/sqrt(n()))
+
+ggplot(data=grouped_by_experimenter_time, aes(x = Experimenter, y=mean_laughs, fill=time)) +
+  geom_bar(stat="identity", position="dodge") +
+  geom_errorbar(aes(ymin = mean_laughs - se_laughs, ymax = mean_laughs + se_laughs), position="dodge")
+```
+
+Interesting! It looks like Hyo and Peter are significantly better comedians in the afternoon, while Aaron and Kat are pretty consistent. Let's clean this up a bit!
+```{r}
+ggplot(data=grouped_by_experimenter_time, aes(x = Experimenter, y=mean_laughs, fill=time)) +
+  geom_bar(stat="identity", position=position_dodge(.9), colour = "black", width=.8) +
+  geom_errorbar(aes(ymin = mean_laughs - se_laughs, ymax = mean_laughs + se_laughs), position=position_dodge(.9), width=.25) +
+  theme_classic() +
+  ylab("Mean Laughs") +
+  scale_fill_manual(values = c("#E1BD6D", "#35274A"), name = "Study Time") +
+  theme(aspect.ratio = 3/5,
+        axis.title=element_text(size=14,face="bold"),
+        axis.text=element_text(size=12),
+        legend.title=element_text(size=14,face="bold"),
+        legend.text=element_text(size=12),
+        legend.direction="horizontal",
+        legend.position="bottom")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
