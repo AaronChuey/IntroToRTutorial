@@ -67,7 +67,7 @@ mutated_data <- filtered_data %>%
 Earlier I said the data was in "wide" format, which means that each participant is represented by a single row. For many stats and graphing applications in R, we need to format the data "long". This means that each row represents a particular response value, and for dataframes for repeated measures, a participant could be spread across multiple rows. Pivoting long means taking the columns that represent each repeated measure and turning them into 2 columns, one whose values represent the value of the measure and another whose values stipulate the kind of measure. We can do this using the pivot_longer() function. pivot_longer() takes as arguments the columns you want to distribute and the names of the resulting 2 new columns. If you wanted to go from long to wide format, you can use pivot_wider(), which does this process in reverse, specifying 2 columns to turn into a number of new columns.
 ```{r}
 data_long <- mutated_data %>% 
-  pivot_longer(cols = "Aaron_laughs":"Hyo_laughs", names_to = "Experimenter", values_to = "Laughs")
+  pivot_longer(cols = "Hyo_laughs":"Aaron_laughs", names_to = "Experimenter", values_to = "Laughs")
 ```
 
 Notice that we can specify a range of columns using ":", and the names of each column needs to be specified as a string using "". One annoying thing though is that the values of "Experimenter" are the original column names, not just the experimenter's names. We can use the separate() function to take care of this! Separate takes in a column, a vector of new column names, and a separator string. It splits the values of the given column by the separator string, and assigns them each into a new column. If only one new column is specified, then only the first resulting is assigned to a new column.
@@ -140,6 +140,7 @@ Scatter plots are the easiest type of plot to create, and use the geom_point() f
 ggplot(data=data_long, aes(x = Age.months, y=Laughs, color=Experimenter)) +
   geom_point()
 ```
+
 The trend is still a bit unclear, so let's try adding some fitted trend lines using geom_smooth()
 ```{r}
 ggplot(data=data_long, aes(x = Age.months, y=Laughs, color=Experimenter)) +
@@ -196,6 +197,8 @@ grouped_by_experimenter_time = data_long %>%
   group_by(Experimenter, time) %>% 
   summarise(mean_laughs = mean(Laughs),
             se_laughs = sd(Laughs)/sqrt(n()))
+
+View(grouped_by_experimenter_time)
 
 ggplot(data=grouped_by_experimenter_time, aes(x = Experimenter, y=mean_laughs, fill=time)) +
   geom_bar(stat="identity", position="dodge") +
